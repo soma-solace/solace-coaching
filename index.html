@@ -442,6 +442,9 @@
     if (msg.toLowerCase().includes('missing required fields')) {
       return "Please fill in your date of birth, time of birth, city, and country.";
     }
+    if (msg.toLowerCase().includes('too many requests')) {
+      return "You've tried this a few times in a short window. Please wait about an hour and try again.";
+    }
     return "We couldn't generate your profile. Please check your details and try again.";
   }
 
