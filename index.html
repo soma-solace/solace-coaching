@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solace — Get Your Coaching Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#0B1526;
+    --navy-mid:#16283F;
+    --navy-line:#28405E;
+    --gold:#C6A24D;
+    --gold-soft:#E3C97C;
+    --ivory:#F3EFE4;
+    --muted:#8CA0B9;
+    --error:#D98C7A;
+    --success:#7FBF9E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:radial-gradient(ellipse 80% 60% at 50% -10%, #1B3252 0%, var(--navy-deep) 55%);
+    font-family:'Inter', sans-serif;
+    color:var(--ivory);
+    padding:32px 16px;
+  }
+  .card{
+    width:100%;
+    max-width:440px;
+    background:var(--navy-mid);
+    border:1px solid var(--navy-line);
+    border-radius:14px;
+    padding:36px 30px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--gold);
+    text-align:center;
+    margin-bottom:6px;
+    font-weight:600;
+  }
+  h1{
+    font-family:'Cormorant Garamond', serif;
+    font-weight:600;
+    font-size:30px;
+    text-align:center;
+    margin:0 0 8px;
+    color:var(--ivory);
+  }
+  .sub{
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.5;
+    margin:0 0 28px;
+  }
+  label{
+    display:block;
+    font-size:12px;
+    letter-spacing:0.4px;
+    color:var(--muted);
+    margin:16px 0 6px;
+  }
+  input[type="date"],
+  input[type="time"],
+  input[type="number"],
+  input[type="text"]{
+    width:100%;
+    background:var(--navy-deep);
+    border:1px solid var(--navy-line);
+    border-radius:8px;
+    color:var(--ivory);
+    padding:11px 12px;
+    font-size:15px;
+    font-family:'Inter', sans-serif;
+  }
+  input:focus{
+    outline:none;
+    border-color:var(--gold);
+  }
+  .row{display:flex; gap:10px;}
+  .row > div{flex:1;}
+  .checkbox-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:14px;
+  }
+  .checkbox-row input{width:auto;}
+  .checkbox-row label{margin:0; font-size:13px; color:var(--muted);}
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:6px;
+    line-height:1.5;
+  }
+  #seconds-field{display:none; margin-top:12px;}
+  button.primary{
+    width:100%;
+    margin-top:26px;
+    padding:14px;
+    border:none;
+    border-radius:8px;
+    background:linear-gradient(180deg, var(--gold-soft), var(--gold));
+    color:var(--navy-deep);
+    font-size:15px;
+    font-weight:600;
+    font-family:'Inter', sans-serif;
+    cursor:pointer;
+    letter-spacing:0.2px;
+  }
+  button.primary:hover{filter:brightness(1.05);}
+  button.primary:disabled{opacity:0.6; cursor:default;}
+  button.secondary{
+    width:100%;
+    margin-top:12px;
+    padding:12px;
+    border:1px solid var(--navy-line);
+    border-radius:8px;
+    background:transparent;
+    color:var(--ivory);
+    font-size:14px;
+    cursor:pointer;
+  }
+  .state{display:none;}
+  .state.active{display:block;}
+  .center{text-align:center;}
+  .spinner{
+    width:34px; height:34px;
+    border:3px solid var(--navy-line);
+    border-top-color:var(--gold);
+    border-radius:50%;
+    margin:10px auto 20px;
+    animation:spin 0.9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .icon-circle{
+    width:52px; height:52px;
+    border-radius:50%;
+    background:rgba(127,191,158,0.15);
+    border:1px solid var(--success);
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 18px;
+    font-size:24px;
+    color:var(--success);
+  }
+  .error-box{
+    background:rgba(217,140,122,0.12);
+    border:1px solid var(--error);
+    border-radius:8px;
+    padding:14px;
+    font-size:13px;
+    color:var(--ivory);
+    margin-bottom:16px;
+    line-height:1.5;
+  }
+  .toast{
+    text-align:center;
+    font-size:13px;
+    color:var(--success);
+    margin-top:12px;
+    min-height:16px;
+  }
+  .footnote{
+    text-align:center;
+    font-size:11px;
+    color:var(--muted);
+    margin-top:22px;
+    line-height:1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="eyebrow">Solace · Vedic Coaching</div>
+
+  <!-- STATE 1 — FORM -->
+  <div class="state active" id="state-form">
+    <h1>Get Your Coaching Profile</h1>
+    <p class="sub">Enter your exact birth details below. This takes about a minute, and nothing here is stored or shared.</p>
+
+    <form id="birth-form">
+      <label for="dob">Date of birth</label>
+      <input type="date" id="dob" required>
+
+      <label for="tob">Time of birth</label>
+      <input type="time" id="tob" required>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="know-seconds">
+        <label for="know-seconds">I know the exact seconds</label>
+      </div>
+      <div id="seconds-field">
+        <label for="seconds">Seconds</label>
+        <input type="number" id="seconds" min="0" max="59" placeholder="0">
+      </div>
+      <p class="hint">If you're unsure of your exact birth time, check your birth certificate or ask a family member — even a few minutes can shift your rising sign.</p>
+
+      <label for="city">City</label>
+      <input type="text" id="city" required placeholder="e.g. Fremont">
+
+      <label for="county">County (if applicable)</label>
+      <input type="text" id="county" placeholder="e.g. Alameda County">
+      <p class="hint">Some cities share a name with another place in the same state — adding the county helps us find the exact right one.</p>
+
+      <label for="state">State / Province / Region</label>
+      <input type="text" id="state" placeholder="e.g. California">
+
+      <label for="country">Country</label>
+      <input type="text" id="country" required placeholder="e.g. USA">
+      <p class="hint">Born in a small town? Add the nearest major city too, for accurate coordinates.</p>
+
+      <button type="submit" class="primary" id="submit-btn">Generate My Profile</button>
+    </form>
+  </div>
+
+  <!-- STATE 2 — LOADING -->
+  <div class="state" id="state-loading">
+    <div class="spinner"></div>
+    <p class="center sub" style="margin:0;">Calculating your chart…</p>
+  </div>
+
+  <!-- STATE 3 — READY -->
+  <div class="state" id="state-ready">
+    <div class="icon-circle">✓</div>
+    <h1>Your Profile Is Ready</h1>
+    <p class="sub">Tap below to copy it, then return to the Solace app and paste it in where asked.</p>
+    <button class="primary" id="copy-btn">Copy My Profile</button>
+    <div class="toast" id="copy-toast"></div>
+    <button class="secondary" id="start-over-btn">Start Over</button>
+  </div>
+
+  <!-- STATE 4 — ERROR -->
+  <div class="state" id="state-error">
+    <h1>Something Went Wrong</h1>
+    <div class="error-box" id="error-message"></div>
+    <button class="primary" id="retry-btn">Try Again</button>
+  </div>
+
+  <p class="footnote">Powered by Solace's Vedic calculation engine · Lahiri ayanamsha</p>
+</div>
+
+<script>
+  // =====================================================================
+  // CONFIG
+  // NOTE: app_secret is visible to anyone who inspects this page's source
+  // or network traffic. That's an accepted tradeoff for a static bridge
+  // page with no backend of its own — MASTER_SECRET (which actually
+  // signs/validates tokens) is never exposed. Worst case if someone
+  // extracts this, they can mint their own short-lived chart tokens;
+  // they still can't touch anything else.
+  // =====================================================================
+  const API_BASE    = 'https://vedic-chart-api-847723936203.us-central1.run.app';
+  const APP_ID       = 'lopamudra-studio';
+  const APP_SECRET   = 'u91Nbner8rkGHigiXHFo9U8Gp1jXkQF8';
+
+  const PLANET_ORDER = ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn','Rahu','Ketu'];
+
+  let profileText = '';
+
+  const els = {
+    form: document.getElementById('birth-form'),
+    knowSeconds: document.getElementById('know-seconds'),
+    secondsField: document.getElementById('seconds-field'),
+    submitBtn: document.getElementById('submit-btn'),
+    copyBtn: document.getElementById('copy-btn'),
+    startOverBtn: document.getElementById('start-over-btn'),
+    retryBtn: document.getElementById('retry-btn'),
+    copyToast: document.getElementById('copy-toast'),
+    errorMessage: document.getElementById('error-message'),
+  };
+
+  els.knowSeconds.addEventListener('change', () => {
+    els.secondsField.style.display = els.knowSeconds.checked ? 'block' : 'none';
+  });
+
+  function showState(name) {
+    document.querySelectorAll('.state').forEach(s => s.classList.remove('active'));
+    document.getElementById('state-' + name).classList.add('active');
+  }
+
+  els.form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.submitBtn.disabled = true;
+    showState('loading');
+
+    try {
+      const dob = document.getElementById('dob').value;
+      const tobRaw = document.getElementById('tob').value; // "HH:MM"
+      const seconds = els.knowSeconds.checked
+        ? String(document.getElementById('seconds').value || 0).padStart(2, '0')
+        : '00';
+      const tob = `${tobRaw}:${seconds}`;
+      const city = document.getElementById('city').value.trim();
+      const county = document.getElementById('county').value.trim();
+      const state = document.getElementById('state').value.trim();
+      const country = document.getElementById('country').value.trim();
+
+      const token = await getToken();
+      const chart = await getChart(token, { dob, tob, city, county, state, country });
+
+      if (chart.error) {
+        throw new Error(chart.error);
+      }
+
+      profileText = formatProfile(chart);
+      showState('ready');
+    } catch (err) {
+      els.errorMessage.textContent = friendlyError(err.message);
+      showState('error');
+    } finally {
+      els.submitBtn.disabled = false;
+    }
+  });
+
+  els.retryBtn.addEventListener('click', () => showState('form'));
+  els.startOverBtn.addEventListener('click', () => {
+    els.form.reset();
+    els.secondsField.style.display = 'none';
+    els.copyToast.textContent = '';
+    showState('form');
+  });
+
+  els.copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(profileText);
+    } catch {
+      // Fallback for browsers without Clipboard API support
+      const ta = document.createElement('textarea');
+      ta.value = profileText;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    els.copyToast.textContent = 'Copied! Now switch to Solace and paste it in.';
+  });
+
+  function friendlyError(msg) {
+    if (!msg) return "We couldn't generate your profile. Please try again.";
+    if (msg.toLowerCase().includes('geocode')) {
+      return "We couldn't find that location. Try adding the nearest major city, or double-check the spelling.";
+    }
+    if (msg.toLowerCase().includes('credentials') || msg.toLowerCase().includes('unauthorized')) {
+      return "We're having trouble connecting right now. Please try again in a moment.";
+    }
+    if (msg.toLowerCase().includes('missing required fields')) {
+      return "Please fill in your date of birth, time of birth, city, and country.";
+    }
+    return "We couldn't generate your profile. Please check your details and try again.";
+  }
+
+  // =====================================================================
+  // API CALLS
+  // =====================================================================
+
+  async function getToken() {
+    const res = await fetch(`${API_BASE}/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Authentication failed');
+    return data.token;
+  }
+
+  async function getChart(token, birthParams) {
+    const res = await fetch(`${API_BASE}/chart/full`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(birthParams)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Chart calculation failed');
+    return data;
+  }
+
+  // =====================================================================
+  // FORMAT — turns raw API JSON into a clean, plain-English text block
+  // =====================================================================
+
+  function houseOf(planetRashiIndex, ascRashiIndex) {
+    return ((planetRashiIndex - ascRashiIndex + 12) % 12) + 1;
+  }
+
+  function formatHouses(housesObj) {
+    const lines = [];
+    for (let h = 1; h <= 12; h++) {
+      const house = housesObj[h];
+      if (!house) continue;
+      const tag = h === 1 ? ' (Ascendant)' : '';
+      const planetPart = house.planets && house.planets.length
+        ? ` — ${house.planets.join(', ')}`
+        : '';
+      lines.push(`House ${h}${tag}: ${house.sign}${planetPart}`);
+    }
+    return lines.join('\n');
+  }
+
+  function formatProfile(data) {
+    const lines = [];
+    lines.push('=== SOLACE COACHING PROFILE ===');
+    lines.push('(Paste this entire block into the Solace app when asked)');
+    lines.push('');
+    lines.push(`Born: ${data.meta.dob} at ${data.meta.tob}, ${data.meta.location}`);
+    lines.push('');
+
+    lines.push('--- BIRTH CHART (D1 — RASHI) ---');
+    lines.push(formatHouses(data.d1_rasi_houses));
+    lines.push('');
+
+    const d9 = data.divisional_charts && data.divisional_charts.D9;
+    if (d9) {
+      lines.push('--- SOUL CHART (D9 — NAVAMSHA) ---');
+      lines.push(formatHouses(d9.rasi_houses));
+      lines.push('');
+    }
+
+    lines.push('--- PLANETARY POSITIONS AT BIRTH ---');
+    const ascRi = data.ascendant.rashi_index;
+    for (const name of PLANET_ORDER) {
+      const p = data.planets[name];
+      if (!p) continue;
+      const house = houseOf(p.rashi_index, ascRi);
+      const dir = p.retrograde ? 'Retrograde' : 'Direct';
+      lines.push(`${p.sanskrit_name} — ${p.rashi}, House ${house}, ${p.nakshatra} nakshatra (ruled by ${p.nakshatra_lord}), ${dir}`);
+    }
+    lines.push('');
+
+    lines.push('--- KARAKAS ---');
+    for (const [title, k] of Object.entries(data.karakas)) {
+      lines.push(`${title}: ${k.sanskrit_name} — ${k.degree}° in sign`);
+    }
+    lines.push('');
+
+    const vd = data.vimshottari_dasha;
+    lines.push('--- YOUR CURRENT COSMIC CHAPTER ---');
+    if (vd.current_mahadasha) {
+      lines.push(`Major Chapter (Mahadasha): ${vd.current_mahadasha.lord} — ${vd.current_mahadasha.start} to ${vd.current_mahadasha.end}`);
+    }
+    if (vd.current_antardasha) {
+      lines.push(`Sub-Chapter (Antardasha): ${vd.current_antardasha.lord} — ${vd.current_antardasha.start} to ${vd.current_antardasha.end}`);
+    }
+    if (vd.current_pratyantardasha) {
+      lines.push(`Micro-Chapter (Pratyantardasha): ${vd.current_pratyantardasha.lord} — ${vd.current_pratyantardasha.start} to ${vd.current_pratyantardasha.end}`);
+    }
+    lines.push('');
+
+    if (vd.antardashas_in_current_md && vd.antardashas_in_current_md.length) {
+      lines.push('--- UPCOMING SUB-CHAPTER SHIFTS (within current Mahadasha) ---');
+      vd.antardashas_in_current_md.forEach(ad => {
+        lines.push(`${ad.lord}: ${ad.start} to ${ad.end}`);
+      });
+      lines.push('');
+    }
+
+    if (vd.pratyantardashas_in_current_ad && vd.pratyantardashas_in_current_ad.length) {
+      lines.push('--- UPCOMING MICRO-CHAPTER SHIFTS (within current Antardasha) ---');
+      vd.pratyantardashas_in_current_ad.forEach(pd => {
+        lines.push(`${pd.lord}: ${pd.start} to ${pd.end}`);
+      });
+      lines.push('');
+    }
+
+    if (vd.mahadasha_sequence && vd.current_mahadasha) {
+      const idx = vd.mahadasha_sequence.findIndex(m => m.start === vd.current_mahadasha.start);
+      const next = idx >= 0 ? vd.mahadasha_sequence[idx + 1] : null;
+      if (next) {
+        lines.push('--- NEXT MAJOR CHAPTER ---');
+        lines.push(`${next.lord} begins ${next.start}`);
+        lines.push('');
+      }
+    }
+
+    if (data.yogas && data.yogas.length) {
+      lines.push('--- NOTABLE YOGAS ---');
+      data.yogas.forEach(y => {
+        lines.push(`${y.name} (${y.strength}): ${y.description}`);
+      });
+      lines.push('');
+    }
+
+    lines.push(`Ayanamsha: Lahiri (sidereal) — Julian Day ${data.meta.julian_day}`);
+
+    return lines.join('\n');
+  }
+</script>
+
+</body>
+</html>
