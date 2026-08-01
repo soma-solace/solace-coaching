@@ -499,7 +499,8 @@
     return lines.join('\n');
   }
 
-  function formatConjunctions(conjunctions, planetsData) {
+  function formatConjunctions(conjunctions, planetsData, signSource) {
+    signSource = signSource || planetsData;
     const seen = new Set();
     const lines = [];
     for (const p1 of PLANET_ORDER) {
@@ -510,7 +511,7 @@
       if (seen.has(key)) continue;
       seen.add(key);
       const names = group.map(p => planetsData[p].sanskrit_name).join(' + ');
-      lines.push(`${names} — conjunct (same sign: ${planetsData[p1].rashi})`);
+      lines.push(`${names} — conjunct (same sign: ${signSource[p1].rashi})`);
     }
     return lines;
   }
@@ -538,6 +539,27 @@
     });
   }
 
+  function pushChartRelationships(lines, label, chart, planetsData) {
+    const conjLines = formatConjunctions(chart.conjunctions, planetsData, chart.planets);
+    if (conjLines.length) {
+      lines.push(`--- ${label} — CONJUNCTIONS ---`);
+      conjLines.forEach(l => lines.push(l));
+      lines.push('');
+    }
+    const aspectLines = formatAspects(chart.aspects, planetsData);
+    if (aspectLines.length) {
+      lines.push(`--- ${label} — ASPECTS ---`);
+      aspectLines.forEach(l => lines.push(l));
+      lines.push('');
+    }
+    const exchangeLines = formatExchanges(chart.exchanges, planetsData);
+    if (exchangeLines.length) {
+      lines.push(`--- ${label} — EXCHANGES (Parivartana) ---`);
+      exchangeLines.forEach(l => lines.push(l));
+      lines.push('');
+    }
+  }
+
   function formatProfile(data) {
     const lines = [];
     lines.push('=== SOLACE COACHING PROFILE ===');
@@ -562,6 +584,7 @@
       lines.push('--- SOUL CHART (D9 — NAVAMSHA, BHAVA) ---');
       lines.push(formatHouses(d9.bhava_houses));
       lines.push('');
+      pushChartRelationships(lines, 'SOUL CHART (D9)', d9, data.planets);
     }
 
     const VARGA_LABELS = {
@@ -581,6 +604,7 @@
         lines.push(`--- ${VARGA_LABELS[code]} — BHAVA ---`);
         lines.push(formatHouses(varga.bhava_houses));
         lines.push('');
+        pushChartRelationships(lines, VARGA_LABELS[code], varga, data.planets);
       }
     });
 
