@@ -73,7 +73,8 @@
   input[type="date"],
   input[type="time"],
   input[type="number"],
-  input[type="text"]{
+  input[type="text"],
+  select{
     width:100%;
     background:var(--navy-deep);
     border:1px solid var(--navy-line);
@@ -83,7 +84,8 @@
     font-size:15px;
     font-family:'Inter', sans-serif;
   }
-  input:focus{
+  input:focus,
+  select:focus{
     outline:none;
     border-color:var(--gold);
   }
@@ -190,11 +192,43 @@
     <p class="sub">Enter your exact birth details below. This takes about a minute, and nothing here is stored or shared.</p>
 
     <form id="birth-form">
-      <label for="dob">Date of birth</label>
-      <input type="date" id="dob" required>
+      <label>Date of birth</label>
+      <div class="row">
+        <div>
+          <select id="dob-month" required>
+            <option value="" disabled selected>Month</option>
+          </select>
+        </div>
+        <div>
+          <select id="dob-day" required>
+            <option value="" disabled selected>Day</option>
+          </select>
+        </div>
+        <div>
+          <input type="number" id="dob-year" required placeholder="Year" min="1900" max="2026">
+        </div>
+      </div>
 
-      <label for="tob">Time of birth</label>
-      <input type="time" id="tob" required>
+      <label>Time of birth</label>
+      <div class="row">
+        <div>
+          <select id="tob-hour" required>
+            <option value="" disabled selected>Hour</option>
+          </select>
+        </div>
+        <div>
+          <select id="tob-minute" required>
+            <option value="" disabled selected>Min</option>
+          </select>
+        </div>
+        <div>
+          <select id="tob-ampm" required>
+            <option value="" disabled selected>AM/PM</option>
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+          </select>
+        </div>
+      </div>
 
       <div class="checkbox-row">
         <input type="checkbox" id="know-seconds">
@@ -284,6 +318,40 @@
     els.secondsField.style.display = els.knowSeconds.checked ? 'block' : 'none';
   });
 
+  // Populate dropdowns — avoids any native locale-dependent date/time format
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthSelect = document.getElementById('dob-month');
+  MONTH_NAMES.forEach((name, i) => {
+    const opt = document.createElement('option');
+    opt.value = i + 1;
+    opt.textContent = name;
+    monthSelect.appendChild(opt);
+  });
+
+  const daySelect = document.getElementById('dob-day');
+  for (let d = 1; d <= 31; d++) {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d;
+    daySelect.appendChild(opt);
+  }
+
+  const hourSelect = document.getElementById('tob-hour');
+  for (let h = 1; h <= 12; h++) {
+    const opt = document.createElement('option');
+    opt.value = h;
+    opt.textContent = h;
+    hourSelect.appendChild(opt);
+  }
+
+  const minuteSelect = document.getElementById('tob-minute');
+  for (let m = 0; m <= 59; m++) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = String(m).padStart(2, '0');
+    minuteSelect.appendChild(opt);
+  }
+
   function showState(name) {
     document.querySelectorAll('.state').forEach(s => s.classList.remove('active'));
     document.getElementById('state-' + name).classList.add('active');
@@ -295,8 +363,23 @@
     showState('loading');
 
     try {
-      const dob = document.getElementById('dob').value;
-      const tobRaw = document.getElementById('tob').value; // "HH:MM"
+      const dobMonth = document.getElementById('dob-month').value;
+      const dobDay = document.getElementById('dob-day').value;
+      const dobYear = document.getElementById('dob-year').value;
+      if (!dobMonth || !dobDay || !dobYear) {
+        throw new Error('Please complete your full date of birth.');
+      }
+      const dob = `${dobYear}-${String(dobMonth).padStart(2, '0')}-${String(dobDay).padStart(2, '0')}`;
+
+      const hour12 = parseInt(document.getElementById('tob-hour').value, 10);
+      const minute = document.getElementById('tob-minute').value;
+      const ampm = document.getElementById('tob-ampm').value;
+      if (!hour12 || minute === '' || !ampm) {
+        throw new Error('Please complete your full time of birth.');
+      }
+      let hour24 = hour12 % 12;
+      if (ampm === 'PM') hour24 += 12;
+      const tobRaw = `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
       const seconds = els.knowSeconds.checked
         ? String(document.getElementById('seconds').value || 0).padStart(2, '0')
         : '00';
@@ -413,6 +496,45 @@
     return lines.join('\n');
   }
 
+  function formatConjunctions(conjunctions, planetsData) {
+    const seen = new Set();
+    const lines = [];
+    for (const p1 of PLANET_ORDER) {
+      const partners = (conjunctions && conjunctions[p1]) || [];
+      if (!partners.length) continue;
+      const group = [p1, ...partners].sort();
+      const key = group.join('+');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const names = group.map(p => planetsData[p].sanskrit_name).join(' + ');
+      lines.push(`${names} — conjunct (same sign: ${planetsData[p1].rashi})`);
+    }
+    return lines;
+  }
+
+  function formatAspects(aspects, planetsData) {
+    const lines = [];
+    for (const p1 of PLANET_ORDER) {
+      const list = (aspects && aspects[p1]) || [];
+      list.forEach(a => {
+        if (a.planets_aspected && a.planets_aspected.length) {
+          const aspectedNames = a.planets_aspected.map(p => planetsData[p].sanskrit_name).join(', ');
+          lines.push(`${planetsData[p1].sanskrit_name} casts its ${a.aspect_type} onto ${a.sign} (House ${a.house}) — affecting ${aspectedNames}`);
+        }
+      });
+    }
+    return lines;
+  }
+
+  function formatExchanges(exchanges, planetsData) {
+    return (exchanges || []).map(ex => {
+      const [p1, p2] = ex.planets;
+      const [h1, h2] = ex.houses;
+      const [s1, s2] = ex.signs;
+      return `${planetsData[p1].sanskrit_name} (House ${h1}) sits in ${planetsData[p2].sanskrit_name}'s sign (${s1}), while ${planetsData[p2].sanskrit_name} (House ${h2}) sits in ${planetsData[p1].sanskrit_name}'s sign (${s2}) — mutual exchange (Parivartana Yoga)`;
+    });
+  }
+
   function formatProfile(data) {
     const lines = [];
     lines.push('=== SOLACE COACHING PROFILE ===');
@@ -421,16 +543,43 @@
     lines.push(`Born: ${data.meta.dob} at ${data.meta.tob}, ${data.meta.location}`);
     lines.push('');
 
-    lines.push('--- BIRTH CHART (D1 — RASHI) ---');
+    lines.push('--- BIRTH CHART (D1 — RASHI, WHOLE SIGN) ---');
     lines.push(formatHouses(data.d1_rasi_houses));
+    lines.push('');
+
+    lines.push('--- BIRTH CHART (D1 — BHAVA, EQUAL HOUSE) ---');
+    lines.push(formatHouses(data.d1_bhava_houses));
     lines.push('');
 
     const d9 = data.divisional_charts && data.divisional_charts.D9;
     if (d9) {
-      lines.push('--- SOUL CHART (D9 — NAVAMSHA) ---');
+      lines.push('--- SOUL CHART (D9 — NAVAMSHA, RASHI) ---');
       lines.push(formatHouses(d9.rasi_houses));
       lines.push('');
+      lines.push('--- SOUL CHART (D9 — NAVAMSHA, BHAVA) ---');
+      lines.push(formatHouses(d9.bhava_houses));
+      lines.push('');
     }
+
+    const VARGA_LABELS = {
+      D10: 'CAREER CHART (D10 — DASHAMSHA)',
+      D7:  'RELATIONSHIPS & CHILDREN CHART (D7 — SAPTAMSHA)',
+      D24: 'EDUCATION CHART (D24 — CHATURVIMSHAMSHA)',
+      D6:  'HEALTH CHART (D6 — SHASHTHAMSHA)',
+      D2:  'WEALTH CHART (D2 — HORA)',
+      D60: 'KARMA & PAST PATTERNS CHART (D60 — SHASHTIAMSHA)'
+    };
+    ['D10', 'D7', 'D24', 'D6', 'D2', 'D60'].forEach(code => {
+      const varga = data.divisional_charts && data.divisional_charts[code];
+      if (varga) {
+        lines.push(`--- ${VARGA_LABELS[code]} — RASHI ---`);
+        lines.push(formatHouses(varga.rasi_houses));
+        lines.push('');
+        lines.push(`--- ${VARGA_LABELS[code]} — BHAVA ---`);
+        lines.push(formatHouses(varga.bhava_houses));
+        lines.push('');
+      }
+    });
 
     lines.push('--- PLANETARY POSITIONS AT BIRTH ---');
     const ascRi = data.ascendant.rashi_index;
@@ -439,7 +588,10 @@
       if (!p) continue;
       const house = houseOf(p.rashi_index, ascRi);
       const dir = p.retrograde ? 'Retrograde' : 'Direct';
-      lines.push(`${p.sanskrit_name} — ${p.rashi}, House ${house}, ${p.nakshatra} nakshatra (ruled by ${p.nakshatra_lord}), ${dir}`);
+      const dignityPart = (p.dignity && p.dignity !== 'Neutral')
+        ? ` — ${p.dignity}${p.dignity_note ? ' (' + p.dignity_note + ')' : ''}`
+        : '';
+      lines.push(`${p.sanskrit_name} — ${p.rashi}, House ${house}, ${p.nakshatra} nakshatra (ruled by ${p.nakshatra_lord}), ${dir}${dignityPart}`);
     }
     lines.push('');
 
@@ -493,6 +645,27 @@
       data.yogas.forEach(y => {
         lines.push(`${y.name} (${y.strength}): ${y.description}`);
       });
+      lines.push('');
+    }
+
+    const conjLines = formatConjunctions(data.conjunctions, data.planets);
+    if (conjLines.length) {
+      lines.push('--- CONJUNCTIONS ---');
+      conjLines.forEach(l => lines.push(l));
+      lines.push('');
+    }
+
+    const aspectLines = formatAspects(data.aspects, data.planets);
+    if (aspectLines.length) {
+      lines.push('--- ASPECTS (affecting other planets) ---');
+      aspectLines.forEach(l => lines.push(l));
+      lines.push('');
+    }
+
+    const exchangeLines = formatExchanges(data.exchanges, data.planets);
+    if (exchangeLines.length) {
+      lines.push('--- PLANETARY EXCHANGES (Parivartana Yoga) ---');
+      exchangeLines.forEach(l => lines.push(l));
       lines.push('');
     }
 
