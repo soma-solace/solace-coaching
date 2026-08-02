@@ -667,6 +667,15 @@
       }
     }
 
+    if (vd.year_ahead_forecast && vd.year_ahead_forecast.length) {
+      lines.push('--- YEAR AHEAD: FULL DASHA FORECAST (next 12 months) ---');
+      lines.push('(Correctly includes any Mahadasha or Antardasha transitions falling within this window, not just the currently active period.)');
+      vd.year_ahead_forecast.forEach(f => {
+        lines.push(`${f.mahadasha} MD / ${f.antardasha} AD / ${f.pratyantardasha} PD — ${f.start} to ${f.end}`);
+      });
+      lines.push('');
+    }
+
     if (data.yogas && data.yogas.length) {
       lines.push('--- NOTABLE YOGAS ---');
       data.yogas.forEach(y => {
