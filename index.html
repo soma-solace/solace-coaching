@@ -189,7 +189,12 @@
   <!-- STATE 1 — FORM -->
   <div class="state active" id="state-form">
     <h1>Get Your Coaching Profile</h1>
-    <p class="sub">Enter your exact birth details below. This takes about a minute, and nothing here is stored or shared.</p>
+    <p class="sub">Enter your exact birth details below. This takes about a minute. Nothing here is shared — birth details are saved only on this device, to make a future refresh faster.</p>
+
+    <div id="welcome-back-banner" style="display:none; background:rgba(198,162,77,0.12); border:1px solid var(--gold); border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:var(--ivory);">
+      Welcome back — we've filled in your saved birth details below.
+      <a href="#" id="clear-saved-link" style="color:var(--gold); text-decoration:underline; white-space:nowrap;">Not you, or need to start fresh?</a>
+    </div>
 
     <form id="birth-form">
       <label>Date of birth</label>
@@ -357,6 +362,46 @@
     document.getElementById('state-' + name).classList.add('active');
   }
 
+  // Restore previously saved birth data, if this device has generated a
+  // profile before (e.g. for a future profile refresh).
+  (function restoreSavedBirthData() {
+    let saved;
+    try {
+      const raw = localStorage.getItem('solace_birth_data');
+      if (!raw) return;
+      saved = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!saved) return;
+
+    if (saved.dobMonth) document.getElementById('dob-month').value = saved.dobMonth;
+    if (saved.dobDay) document.getElementById('dob-day').value = saved.dobDay;
+    if (saved.dobYear) document.getElementById('dob-year').value = saved.dobYear;
+    if (saved.hour12) document.getElementById('tob-hour').value = saved.hour12;
+    if (saved.minute !== undefined) document.getElementById('tob-minute').value = saved.minute;
+    if (saved.ampm) document.getElementById('tob-ampm').value = saved.ampm;
+    if (saved.knowSeconds) {
+      els.knowSeconds.checked = true;
+      els.secondsField.style.display = 'block';
+      if (saved.seconds) document.getElementById('seconds').value = saved.seconds;
+    }
+    if (saved.city) document.getElementById('city').value = saved.city;
+    if (saved.county) document.getElementById('county').value = saved.county;
+    if (saved.state) document.getElementById('state').value = saved.state;
+    if (saved.country) document.getElementById('country').value = saved.country;
+
+    document.getElementById('welcome-back-banner').style.display = 'block';
+  })();
+
+  document.getElementById('clear-saved-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    try { localStorage.removeItem('solace_birth_data'); } catch {}
+    els.form.reset();
+    els.secondsField.style.display = 'none';
+    document.getElementById('welcome-back-banner').style.display = 'none';
+  });
+
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     els.submitBtn.disabled = true;
@@ -394,6 +439,22 @@
 
       if (chart.error) {
         throw new Error(chart.error);
+      }
+
+      // Save for next time (e.g. a future profile refresh) — stored only on
+      // this device/browser, never sent anywhere until the form is submitted.
+      try {
+        localStorage.setItem('solace_birth_data', JSON.stringify({
+          dobMonth, dobDay, dobYear,
+          hour12: document.getElementById('tob-hour').value,
+          minute, ampm,
+          knowSeconds: els.knowSeconds.checked,
+          seconds: els.knowSeconds.checked ? document.getElementById('seconds').value : '',
+          city, county, state, country
+        }));
+      } catch {
+        // Storage unavailable (private browsing, disabled storage, etc.) —
+        // not critical, just means next visit won't be pre-filled.
       }
 
       profileText = formatProfile(chart);
@@ -641,10 +702,21 @@
     }
     lines.push('');
 
-    if (vd.antardashas_in_current_md && vd.antardashas_in_current_md.length) {
-      lines.push('--- UPCOMING SUB-CHAPTER SHIFTS (within current Mahadasha) ---');
-      vd.antardashas_in_current_md.forEach(ad => {
-        lines.push(`${ad.lord}: ${ad.start} to ${ad.end}`);
+    if (vd.mahadasha_sequence && vd.mahadasha_sequence.length) {
+      lines.push('--- FULL MAHADASHA TIMELINE (entire dasha cycle) ---');
+      vd.mahadasha_sequence.forEach(md => {
+        lines.push(`${md.lord}: ${md.start} to ${md.end}`);
+      });
+      lines.push('');
+    }
+
+    if (vd.antardashas_by_mahadasha && vd.antardashas_by_mahadasha.length) {
+      lines.push('--- FULL ANTARDASHA BREAKDOWN (current and every future Mahadasha) ---');
+      vd.antardashas_by_mahadasha.forEach(entry => {
+        lines.push(`Under ${entry.mahadasha_lord} Mahadasha (${entry.mahadasha_start} to ${entry.mahadasha_end}):`);
+        entry.antardashas.forEach(ad => {
+          lines.push(`  ${ad.lord} AD: ${ad.start} to ${ad.end}`);
+        });
       });
       lines.push('');
     }
@@ -655,16 +727,6 @@
         lines.push(`${pd.lord}: ${pd.start} to ${pd.end}`);
       });
       lines.push('');
-    }
-
-    if (vd.mahadasha_sequence && vd.current_mahadasha) {
-      const idx = vd.mahadasha_sequence.findIndex(m => m.start === vd.current_mahadasha.start);
-      const next = idx >= 0 ? vd.mahadasha_sequence[idx + 1] : null;
-      if (next) {
-        lines.push('--- NEXT MAJOR CHAPTER ---');
-        lines.push(`${next.lord} begins ${next.start}`);
-        lines.push('');
-      }
     }
 
     if (vd.year_ahead_forecast && vd.year_ahead_forecast.length) {
