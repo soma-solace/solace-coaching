@@ -105,6 +105,38 @@
     margin-top:6px;
     line-height:1.5;
   }
+  .location-search{position:relative;}
+  .location-suggestions{
+    position:absolute;
+    z-index:20;
+    top:calc(100% + 5px);
+    left:0;
+    right:0;
+    max-height:240px;
+    overflow-y:auto;
+    border:1px solid var(--navy-line);
+    border-radius:8px;
+    background:var(--navy-deep);
+    box-shadow:0 14px 30px rgba(0,0,0,0.38);
+  }
+  .location-suggestions[hidden]{display:none;}
+  .location-option{
+    display:block;
+    width:100%;
+    margin:0;
+    padding:11px 12px;
+    border:0;
+    border-bottom:1px solid var(--navy-line);
+    border-radius:0;
+    background:transparent;
+    color:var(--ivory);
+    font:14px/1.4 'Inter',sans-serif;
+    text-align:left;
+    cursor:pointer;
+  }
+  .location-option:last-child{border-bottom:0;}
+  .location-option:hover,
+  .location-option.active{background:#203754;}
   #seconds-field{display:none; margin-top:12px;}
   button.primary{
     width:100%;
@@ -261,7 +293,11 @@
       <p class="hint">If you're unsure of your exact birth time, check your birth certificate or ask a family member — even a few minutes can shift your rising sign.</p>
 
       <label for="city">City</label>
-      <input type="text" id="city" required placeholder="e.g. Fremont">
+      <div class="location-search">
+        <input type="text" id="city" required placeholder="Start typing your birth city" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="location-suggestions">
+        <div id="location-suggestions" class="location-suggestions" role="listbox" hidden></div>
+      </div>
+      <p class="hint" id="location-search-status" aria-live="polite">Choose a suggestion to fill the county, state/region and country automatically. Location data based on GeoNames.</p>
 
       <label for="county">County (if applicable)</label>
       <input type="text" id="county" placeholder="e.g. Alameda County">
@@ -337,7 +373,123 @@
     retryBtn: document.getElementById('retry-btn'),
     copyToast: document.getElementById('copy-toast'),
     errorMessage: document.getElementById('error-message'),
+    city: document.getElementById('city'),
+    county: document.getElementById('county'),
+    state: document.getElementById('state'),
+    country: document.getElementById('country'),
+    locationSuggestions: document.getElementById('location-suggestions'),
+    locationSearchStatus: document.getElementById('location-search-status'),
   };
+
+  let locationSearchTimer = null;
+  let locationSearchRequest = null;
+  let locationResults = [];
+  let activeLocationIndex = -1;
+
+  function closeLocationSuggestions() {
+    els.locationSuggestions.hidden = true;
+    els.city.setAttribute('aria-expanded', 'false');
+    els.city.removeAttribute('aria-activedescendant');
+    activeLocationIndex = -1;
+  }
+
+  function locationLabel(place) {
+    return [place.name, place.admin2, place.admin1, place.country]
+      .filter((part, index, values) => part && values.indexOf(part) === index)
+      .join(', ');
+  }
+
+  function selectLocation(place) {
+    els.city.value = place.name || '';
+    els.county.value = place.admin2 || '';
+    els.state.value = place.admin1 || '';
+    els.country.value = place.country || '';
+    els.locationSearchStatus.textContent = `Selected ${locationLabel(place)}.`;
+    closeLocationSuggestions();
+  }
+
+  function renderLocationSuggestions(results) {
+    locationResults = results;
+    els.locationSuggestions.replaceChildren();
+    activeLocationIndex = -1;
+
+    results.forEach((place, index) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'location-option';
+      option.setAttribute('role', 'option');
+      option.id = `location-option-${index}`;
+      option.textContent = locationLabel(place);
+      option.addEventListener('mousedown', (event) => event.preventDefault());
+      option.addEventListener('click', () => selectLocation(place));
+      els.locationSuggestions.appendChild(option);
+    });
+
+    els.locationSuggestions.hidden = results.length === 0;
+    els.city.setAttribute('aria-expanded', results.length ? 'true' : 'false');
+    els.locationSearchStatus.textContent = results.length
+      ? `${results.length} matching places found. Choose the correct one.`
+      : 'No matching place found. You can continue with manual entry.';
+  }
+
+  async function searchLocations(query) {
+    if (locationSearchRequest) locationSearchRequest.abort();
+    locationSearchRequest = new AbortController();
+    els.locationSearchStatus.textContent = 'Searching for matching places…';
+
+    try {
+      const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
+      url.searchParams.set('name', query);
+      url.searchParams.set('count', '6');
+      url.searchParams.set('language', 'en');
+      url.searchParams.set('format', 'json');
+      const response = await fetch(url, { signal: locationSearchRequest.signal });
+      if (!response.ok) throw new Error('Location search unavailable');
+      const data = await response.json();
+      renderLocationSuggestions(Array.isArray(data.results) ? data.results : []);
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      closeLocationSuggestions();
+      els.locationSearchStatus.textContent = 'Automatic search is unavailable. Please enter the location manually.';
+    }
+  }
+
+  els.city.addEventListener('input', () => {
+    window.clearTimeout(locationSearchTimer);
+    const query = els.city.value.trim();
+    if (query.length < 3) {
+      if (locationSearchRequest) locationSearchRequest.abort();
+      closeLocationSuggestions();
+      els.locationSearchStatus.textContent = 'Type at least 3 letters, then choose the correct birth place.';
+      return;
+    }
+    locationSearchTimer = window.setTimeout(() => searchLocations(query), 350);
+  });
+
+  els.city.addEventListener('keydown', (event) => {
+    if (els.locationSuggestions.hidden || !locationResults.length) return;
+    if (event.key === 'Escape') {
+      closeLocationSuggestions();
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Enter') {
+      selectLocation(locationResults[activeLocationIndex >= 0 ? activeLocationIndex : 0]);
+      return;
+    }
+    const direction = event.key === 'ArrowDown' ? 1 : -1;
+    activeLocationIndex = (activeLocationIndex + direction + locationResults.length) % locationResults.length;
+    Array.from(els.locationSuggestions.children).forEach((option, index) => {
+      option.classList.toggle('active', index === activeLocationIndex);
+      option.setAttribute('aria-selected', index === activeLocationIndex ? 'true' : 'false');
+    });
+    els.city.setAttribute('aria-activedescendant', `location-option-${activeLocationIndex}`);
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.location-search')) closeLocationSuggestions();
+  });
 
   els.knowSeconds.addEventListener('change', () => {
     els.secondsField.style.display = els.knowSeconds.checked ? 'block' : 'none';
