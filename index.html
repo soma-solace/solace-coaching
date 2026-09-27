@@ -122,6 +122,21 @@
   }
   button.primary:hover{filter:brightness(1.05);}
   button.primary:disabled{opacity:0.6; cursor:default;}
+  a.primary{
+    display:block;
+    width:100%;
+    margin-top:26px;
+    padding:14px;
+    border-radius:8px;
+    background:linear-gradient(180deg, var(--gold-soft), var(--gold));
+    color:var(--navy-deep);
+    font-size:15px;
+    font-weight:600;
+    text-align:center;
+    text-decoration:none;
+    letter-spacing:0.2px;
+  }
+  a.primary:hover{filter:brightness(1.05);}
   button.secondary{
     width:100%;
     margin-top:12px;
@@ -273,8 +288,9 @@
   <div class="state" id="state-ready">
     <div class="icon-circle">✓</div>
     <h1>Your Profile Is Ready</h1>
-    <p class="sub">Tap below to copy it, then return to the Solace app and paste it in where asked.</p>
-    <button class="primary" id="copy-btn">Copy My Profile</button>
+    <p class="sub">Download your profile as a PDF. Then return to Solace, find the file in Downloads or your device's Files app, and upload it under “Upload Your Full Solace Coaching Profile File.”</p>
+    <a class="primary" id="download-btn" href="#" download="Solace Coaching Profile.pdf">Download My Profile (PDF)</a>
+    <button class="secondary" id="copy-btn">Copy text instead</button>
     <div class="toast" id="copy-toast"></div>
     <button class="secondary" id="start-over-btn">Start Over</button>
   </div>
@@ -289,6 +305,8 @@
   <p class="footnote">Powered by Solace's Vedic calculation engine · Lahiri ayanamsha</p>
 </div>
 
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="profile-pdf.js"></script>
 <script>
   // =====================================================================
   // CONFIG
@@ -306,12 +324,14 @@
   const PLANET_ORDER = ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn','Rahu','Ketu'];
 
   let profileText = '';
+  let profilePdfUrl = '';
 
   const els = {
     form: document.getElementById('birth-form'),
     knowSeconds: document.getElementById('know-seconds'),
     secondsField: document.getElementById('seconds-field'),
     submitBtn: document.getElementById('submit-btn'),
+    downloadBtn: document.getElementById('download-btn'),
     copyBtn: document.getElementById('copy-btn'),
     startOverBtn: document.getElementById('start-over-btn'),
     retryBtn: document.getElementById('retry-btn'),
@@ -458,6 +478,10 @@
       }
 
       profileText = formatProfile(chart);
+      const pdfBytes = await createProfilePdf(profileText);
+      if (profilePdfUrl) URL.revokeObjectURL(profilePdfUrl);
+      profilePdfUrl = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
+      els.downloadBtn.href = profilePdfUrl;
       showState('ready');
     } catch (err) {
       els.errorMessage.textContent = friendlyError(err.message);
@@ -469,10 +493,23 @@
 
   els.retryBtn.addEventListener('click', () => showState('form'));
   els.startOverBtn.addEventListener('click', () => {
+    if (profilePdfUrl) URL.revokeObjectURL(profilePdfUrl);
+    profilePdfUrl = '';
+    els.downloadBtn.href = '#';
+    profileText = '';
     els.form.reset();
     els.secondsField.style.display = 'none';
     els.copyToast.textContent = '';
     showState('form');
+  });
+
+  els.downloadBtn.addEventListener('click', (event) => {
+    if (!profilePdfUrl) {
+      event.preventDefault();
+      els.copyToast.textContent = 'Generate your profile before downloading it.';
+      return;
+    }
+    els.copyToast.textContent = 'Find “Solace Coaching Profile.pdf” in Downloads or Files, then upload it in Solace.';
   });
 
   els.copyBtn.addEventListener('click', async () => {
@@ -489,7 +526,7 @@
       document.execCommand('copy');
       document.body.removeChild(ta);
     }
-    els.copyToast.textContent = 'Copied! Now switch to Solace and paste it in.';
+    els.copyToast.textContent = 'Copied! Return to Solace and paste the full text instead of uploading a file.';
   });
 
   function friendlyError(msg) {
@@ -650,7 +687,7 @@
 
     const VARGA_LABELS = {
       D10: 'CAREER CHART (D10 — DASHAMSHA)',
-      D7:  'CHILDREN & PROGENY CHART (D7 — SAPTAMSHA)',
+      D7:  'RELATIONSHIPS & CHILDREN CHART (D7 — SAPTAMSHA)',
       D24: 'EDUCATION CHART (D24 — CHATURVIMSHAMSHA)',
       D6:  'HEALTH CHART (D6 — SHASHTHAMSHA)',
       D2:  'WEALTH CHART (D2 — HORA)',
